@@ -104,7 +104,7 @@ function requestFileUploadStream(callback) {
             'transfer-encoding': transferEncoding
         }
     };
-    fs.createReadStream(filePath).pipe(request.put(putURL,options,function(err, httpsResponse, body){
+    fs.createReadStream(filePath).pipe(request(putURL,options,function(err, httpsResponse, body){
         if ( err ) {
             console.log('err', err);
         } else {
