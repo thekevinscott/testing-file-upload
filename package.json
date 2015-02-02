@@ -1,0 +1,23 @@
+{
+  "name": "testing-file-uploads",
+  "version": "1.0.0",
+  "description": "Testing File Uploads using CURL and the request module from node",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.11.2",
+    "raw-body": "^1.3.2",
+    "request": "^2.52.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "node",
+    "request",
+    "curl",
+    "upload"
+  ],
+  "author": "Kevin Scott",
+  "license": "ISC"
+}
