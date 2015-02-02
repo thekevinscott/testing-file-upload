@@ -68,15 +68,17 @@ function curlFileUpload(callback) {
     });
 };
 
-function requestFileUpload(callback) {
+function requestFileUploadString(callback) {
     var options = {
         method: 'put',
         headers: {
             'content-type': contentType,
             'transfer-encoding': transferEncoding
         }, 
+        body: fs.readFileSync(filePath, 'utf8'),
+        //body: fs.createReadStream(filePath),
+        //fs.createReadStream(filePath)
         //multipart : [
-            //{ body: fs.createReadStream(filePath) }
         //]
     };
     request(putURL, options, function(err, httpResponse, body) {
@@ -94,6 +96,29 @@ function requestFileUpload(callback) {
     });
 };
 
+function requestFileUploadStream(callback) {
+    var options = {
+        method: 'put',
+        headers: {
+            'content-type': contentType,
+            'transfer-encoding': transferEncoding
+        }
+    };
+    fs.createReadStream(filePath).pipe(request.put(putURL,options,function(err, httpsResponse, body){
+        if ( err ) {
+            console.log('err', err);
+        } else {
+            try {
+                body = JSON.parse(body);
+            } catch(e) {}
+
+            if ( callback ) {
+                callback(body);
+            }
+        }
+    }));
+};
+
 
 // First do a CURL file upload
 curlFileUpload(function(contents) {
@@ -106,13 +131,24 @@ curlFileUpload(function(contents) {
     }
 });
 
-// Then, do a request upload
-requestFileUpload(function(contents) {
+// Then, do a request upload reading the file into memory
+requestFileUploadString(function(contents) {
     console.log('\n');
     if ( runTest(contents) === 1 ) {
-        console.log('*** All tests passed for Request upload.');
+        console.log('*** All tests passed for Request string upload.');
     } else {
-        console.log('*** Tests failed. Request response');
+        console.log('*** Tests failed. Request Stream response');
+        console.log(contents);
+    }
+});
+
+// Then, do a request upload reading the file as a stream 
+requestFileUploadStream(function(contents) {
+    console.log('\n');
+    if ( runTest(contents) === 1 ) {
+        console.log('*** All tests passed for Request Stream upload.');
+    } else {
+        console.log('*** Tests failed. Request Stream response');
         console.log(contents);
     }
 });
