@@ -2,6 +2,12 @@
 var express = require('express');
 var app = express();
 var getRawBody = require('raw-body')
+var fs = require('fs');
+var request = require('request');
+var putURL = 'http://localhost:5000/put';
+var filePath = 'file.txt';
+var contentType = 'application/octet-stream';
+var transferEncoding = 'chunked';
 
 app.set('port', (process.env.PORT || 5000));
 
@@ -24,25 +30,25 @@ app.use(function (req, res, next) {
     }
 });
 app.put('/put', function(request, response) {
-
-    //response.on('data', function(chunk) {
-        //console.log('data!');
-    //}).on('end', function() {
-        //console.log('done');
-    //});
+    var body;
+    if ( request.body ) {
+        body = request.body.toString('utf8');
+    } else {
+        body = '';
+    }
 
     response.json({
         headers: {
             'content-type' : request.headers['content-type'],
             'transfer-encoding' : request.headers['transfer-encoding'],
         },
-        fileContents: request.body.toString('utf8')
+        fileContents: body
     });
 });
 
-function curlFileUpload() {
+function curlFileUpload(callback) {
     var curlCommand;
-    curlCommand = 'curl -v -X PUT -L "http://localhost:5000/put" --header "Content-Type:application/octet-stream" --header "Transfer-Encoding:chunked" -T "file.txt"';
+    curlCommand = 'curl -v -X PUT -L "'+putURL+'" --header "Content-Type:'+contentType+'" --header "Transfer-Encoding:'+transferEncoding+'" -T "'+filePath+'"';
     var exec = require('child_process').exec;
     var child = exec(curlCommand);
     var contents = '';
@@ -54,19 +60,78 @@ function curlFileUpload() {
     });
     child.on('close', function(code) {
         try {
-            console.log('contents', JSON.parse(contents));
-        } catch(e) {
-            console.log('contents', contents);
+            contents = JSON.parse(contents);
+        } catch(e) { }
+        if ( callback ) {
+            callback(contents);
         }
     });
 };
 
-function requestFileUpload() {
+function requestFileUpload(callback) {
+    var options = {
+        method: 'put',
+        headers: {
+            'content-type': contentType,
+            'transfer-encoding': transferEncoding
+        }, 
+        //multipart : [
+            //{ body: fs.createReadStream(filePath) }
+        //]
+    };
+    request(putURL, options, function(err, httpResponse, body) {
+        if ( err ) {
+            console.log('err', err);
+        } else {
+            try {
+                body = JSON.parse(body);
+            } catch(e) {}
+
+            if ( callback ) {
+                callback(body);
+            }
+        }
+    });
 };
 
 
 // First do a CURL file upload
-curlFileUpload();
+curlFileUpload(function(contents) {
+    console.log('\n');
+    if ( runTest(contents) === 1 ) {
+        console.log('*** All tests passed for CURL upload.');
+    } else {
+        console.log('*** Tests failed. CURL response');
+        console.log(contents);
+    }
+});
 
 // Then, do a request upload
-requestFileUpload();
+requestFileUpload(function(contents) {
+    console.log('\n');
+    if ( runTest(contents) === 1 ) {
+        console.log('*** All tests passed for Request upload.');
+    } else {
+        console.log('*** Tests failed. Request response');
+        console.log(contents);
+    }
+});
+
+function runTest(contents) {
+    var expectedFileContents = fs.readFileSync(filePath, 'utf8');
+    if ( ! contents ) { console.error('No Contents'); }
+    else if ( contents.headers['content-type'] !== contentType ) {
+        console.error('Content type does not match');
+        console.log('Expected', contentType, 'Actual', contents.headers['content-type']);
+    }
+    else if ( contents.headers['transfer-encoding'] !== transferEncoding ) {
+        console.error('Transfer Encoding does not match');
+        console.log('Expected', transferEncoding, 'Actual', contents.headers['transfer-encoding']);
+    }
+    else if ( contents.fileContents != expectedFileContents ) {
+        console.error('File Contents do not match');
+        console.log('Expected', expectedFileContents, 'Actual', contents.fileContents);
+    } else {
+        return 1;
+    }
+};
